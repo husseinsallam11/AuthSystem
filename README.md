@@ -1,4 +1,4 @@
-# Authentication API
+# Authentication System
 
 A simple authentication API built with ASP.NET Core using Clean Architecture. The project demonstrates user authentication with JWT access tokens and refresh tokens, along with ASP.NET Core Identity and Entity Framework Core.
 
