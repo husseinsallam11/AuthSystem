@@ -45,7 +45,8 @@ The solution follows a simple Clean Architecture approach:
 
 1. Clone the repository.
 2. Update the connection string in `appsettings.json`.
-3. Apply the database migrations:
+3. delete existing migrations
+4. Apply the database migrations:
 
 ```bash
 dotnet ef database update
