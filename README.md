@@ -87,3 +87,6 @@ dotnet run
 ## Purpose
 
 This project was built as a learning project to practice backend development with ASP.NET Core, Clean Architecture, JWT authentication, refresh tokens, email confirmation, and modern authentication techniques.
+
+<img width="939" height="598" alt="image" src="https://github.com/user-attachments/assets/499def18-3e0e-4eb5-832a-bfefc4703e64" />
+<img width="959" height="614" alt="image" src="https://github.com/user-attachments/assets/7ac422d4-76d8-4a32-8a44-267abaaaab3d" />
