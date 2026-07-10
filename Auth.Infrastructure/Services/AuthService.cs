@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Auth.Application.Configuration;
+using Microsoft.Extensions.Options;
 
 
 namespace Auth.Infrastructure.Services
@@ -16,18 +19,32 @@ namespace Auth.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly IEmailSender<ApplicationUser> _emailSender;
+        private readonly EmailSettings _emailSettings;
 
         public AuthService(UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IEmailSender<ApplicationUser> emailSender,
+            IOptions<EmailSettings> emailSettings)
                 {
                     _userManager = userManager;
                     _signInManager = signInManager;
                     _configuration = configuration;
+                    _emailSender = emailSender;
+                    _emailSettings = emailSettings.Value;
                 }
 
         public async Task<IdentityResult> RegisterAsync(RegisterDto dto)
         {
+            var exists = await _userManager.FindByEmailAsync(dto.Email);
+            if (exists is not null)
+                return IdentityResult.Failed(
+                    new IdentityError
+                    {
+                        Description = "Email already registered"
+                    });
+
             if(dto.Password != dto.ConfirmPassword)
             {
                 return IdentityResult.Failed(
@@ -43,7 +60,20 @@ namespace Auth.Infrastructure.Services
                 Email = dto.Email
             };
 
-            return await _userManager.CreateAsync(user, dto.Password);
+            var CreateResult = await _userManager.CreateAsync(user, dto.Password);
+            if (!CreateResult.Succeeded)
+            {
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Description = string.Join(", ", CreateResult.Errors.Select(x => x.Description))
+                });
+            }
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var ConfirmationLink = $"{_emailSettings.ClientBaseUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+
+            await _emailSender.SendConfirmationLinkAsync(user, user.Email! , ConfirmationLink);
+
+            return CreateResult;
 
         }
         public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
@@ -52,14 +82,19 @@ namespace Auth.Infrastructure.Services
 
             if (user == null)
             {
-                return null;
+                throw new InvalidOperationException("Invalid Email or Password");
             }
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: false);
 
+            if (result.IsNotAllowed)
+            {
+                throw new InvalidOperationException("Please confirm your email before logging in.");
+            }
+
             if (!result.Succeeded)
             {
-                return null;
+                throw new InvalidOperationException("Invalid Email or Password");
             }
             var response = GenerateJwtToken(user);
 
@@ -110,7 +145,7 @@ namespace Auth.Infrastructure.Services
                 return null;
             }
 
-            var respone = GenerateJwtToken(user);
+            var response = GenerateJwtToken(user);
 
             var newRefreshToken = GenerateRefreshToken();
 
@@ -119,9 +154,9 @@ namespace Auth.Infrastructure.Services
 
             await _userManager.UpdateAsync(user);
 
-            respone.RefreshToken = newRefreshToken;
+            response.RefreshToken = newRefreshToken;
 
-            return respone;
+            return response;
         }
         private AuthResponseDto GenerateJwtToken(ApplicationUser user)
         {

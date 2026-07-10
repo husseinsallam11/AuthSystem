@@ -14,6 +14,8 @@ using FluentValidation.AspNetCore;
 using Auth.API.Validators;
 using Auth.API.Responses;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,9 +58,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 //identity
 builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole>()
+    .AddIdentity<ApplicationUser, IdentityRole>(Options =>
+    {
+        Options.SignIn.RequireConfirmedEmail = true;
+    })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.Configure<DataProtectionTokenProviderOptions>(Options =>
+{
+    Options.TokenLifespan = TimeSpan.FromHours(1);
+});
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.AddScoped<IEmailSender<ApplicationUser>, EmailService>();
 
 //service
 builder.Services.AddScoped<IAuthService, AuthService>();

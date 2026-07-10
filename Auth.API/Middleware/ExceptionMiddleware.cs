@@ -26,7 +26,7 @@ namespace Auth.API.Middleware
             catch (Exception ex)
             {
                 _logger.LogError(ex,
-                    "An unhandeled exception while processing {method} {path}.",
+                    "An unhandled exception while processing {method} {path}.",
                     context.Request.Method,
                     context.Request.Path);
                 context.Response.ContentType = "application/json";
